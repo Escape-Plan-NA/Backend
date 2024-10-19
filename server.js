@@ -1,29 +1,28 @@
 const express = require('express');
+const cors = require('cors');
+const http = require('http');
+const { initSocket } = require('./config/socketConfig');  // Assuming you're using a socket configuration file
+
 const app = express();
-const http = require('http').createServer(app);
-const io = require('socket.io')(http);
+const server = http.createServer(app);
+const io = initSocket(server);  // Initialize socket
+
+// Attach `io` to the app so it can be accessed in the routes and controllers
+app.set('io', io);
+
+app.use(express.json());
+app.use(cors());
+
+// Mount routes
+const gameRoutes = require('./routes/games');
+const imageRoutes = require('./routes/images');
+//const scoreRoutes = require('./routes/scores');
+
+app.use('/games', gameRoutes);
+app.use('/images', imageRoutes);
+//app.use('/scores', scoreRoutes);
 
 const PORT = process.env.PORT || 3000;
-
-app.get('/', (req, res) => {
-    res.send('Escape Plan Server is Running');
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
-
-http.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
-
-io.on('connection', (socket) => {
-    console.log('A player connected', socket.id);
-  
-    socket.on('disconnect', () => {
-        console.log('Player disconnected', socket.id);
-    });
-  
-    socket.on('move', (data) => {
-        console.log('Move received:', data);
-        io.emit('update_state', data); // Broadcast the move to all players
-    });
-});
-
-

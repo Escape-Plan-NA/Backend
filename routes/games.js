@@ -1,18 +1,20 @@
 const express = require('express');
-const { connectToDatabase } = require('../db');  // Adjust path as needed
+const {
+    getGameState,
+    startGame,
+    switchTurn,
+    movePlayer,
+    updateScore,
+    resetGameAndScores
+} = require('../controllers/gameController');  // Ensure the functions are correctly imported
 
 const router = express.Router();
 
-router.get('/', async (req, res) => {
-  try {
-    const connection = await connectToDatabase();
-    const [users] = await connection.execute('SELECT * FROM games');
-    connection.end();
-    res.json(users);
-  } catch (error) {
-    console.error('Database query failed:', error);
-    res.status(500).send('Database query failed');
-  }
-});
+router.get('/game-state', getGameState);
+router.post('/start', startGame);  // Ensure startGame is defined and imported correctly
+router.put('/switch-turn', switchTurn);
+router.put('/move', movePlayer);
+router.put('/update-score', updateScore);
+router.post('/reset-game', resetGameAndScores);
 
 module.exports = router;
