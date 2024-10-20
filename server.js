@@ -1,36 +1,28 @@
 const express = require('express');
+const cors = require('cors');
+const http = require('http');
+const { initSocket } = require('./config/socketConfig');  // Assuming you're using a socket configuration file
+
 const app = express();
-const http = require('http').createServer(app);
-const io = require('socket.io')(http);
+const server = http.createServer(app);
+const io = initSocket(server);  // Initialize socket
+
+// Attach `io` to the app so it can be accessed in the routes and controllers
+app.set('io', io);
+
+app.use(express.json());
+app.use(cors());
+
+// Mount routes
+const gameRoutes = require('./routes/games');
+const imageRoutes = require('./routes/images');
+//const scoreRoutes = require('./routes/scores');
+
+app.use('/games', gameRoutes);
+app.use('/images', imageRoutes);
+//app.use('/scores', scoreRoutes);
 
 const PORT = process.env.PORT || 3000;
-
-// Serve the index.html file from the root route
-app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/public/index.html'); // Adjust this line to serve your HTML file
-});
-
-// Serve static files (like CSS, JS) from the public directory
-app.use(express.static('public'));
-
-http.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
-});
-
-// Handle Socket.IO connections
-io.on('connection', (socket) => {
-    console.log('A player connected', socket.id);
-
-    socket.on('error', (err) => {
-        console.error('Socket error:', err); // Log socket errors
-    });
-
-    socket.on('disconnect', () => {
-        console.log('Player disconnected', socket.id);
-    });
-
-    socket.on('move', (data) => {
-        console.log('Move received:', data);
-        io.emit('update_state', data); // Broadcast the move to all players
-    });
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
