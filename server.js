@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const http = require('http');
 const bodyParser = require('body-parser');
-const { initSocket } = require('./config/socketConfig');  // Assuming you're using a socket configuration file
+const { initSocket } = require('./config/socketConfig');
 
 const app = express();
 const server = http.createServer(app);
@@ -14,32 +14,24 @@ app.set('io', io);
 // Middleware
 app.use(cors());  // Enable CORS
 app.use(bodyParser.json());  // Parse incoming JSON requests
-let playerName="";
-// API route to set name
-app.post('/api/setName', (req, res) => {
-  playerName = req.body.name; // Assign the received name to playerName
-  console.log('Received name:', playerName);
-  res.status(200).json({ message: 'Name received successfully!' });
-});
-// Route to get the player name
-app.get('/api/getName', (req, res) => {
-  if (playerName) {
-      res.status(200).json({ name: playerName }); // Send the current playerName
-  } else {
-      res.status(404).json({ message: 'Player name not found' }); // Handle case where playerName isn't set
-  }
+
+// Debugging middleware to log all incoming requests
+app.use((req, res, next) => {
+  console.log(`Request Method: ${req.method}, Request URL: ${req.url}`);
+  next();
 });
 
-// Mount routes for games and images
+// Importing other routes for games and images
 const gameRoutes = require('./routes/games');
 const imageRoutes = require('./routes/images');
-// const scoreRoutes = require('./routes/scores'); // Uncomment if needed
+const userRoutes = require('./routes/users');  // Import user routes
 
+// Use routes for games and images
 app.use('/games', gameRoutes);
 app.use('/images', imageRoutes);
-// app.use('/scores', scoreRoutes); // Uncomment if needed
+app.use('/users', userRoutes);  // Mount the user routes on '/api'
 
-// Server setup
+// Start the server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

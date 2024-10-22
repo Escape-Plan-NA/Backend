@@ -3,8 +3,8 @@ const { generateRandomGrid, getRandomFreeBlocks } = require('../utils/gridUtils'
 // Initial game state
 let gameData = {
     players: [
-        { id: 1001, role: 'farmer', position: { row: 1, col: 1 }, score: 0 },
-        { id: 1002, role: 'thief', position: { row: 1, col: 1 }, score: 0 }
+        { id: 0, role: 'farmer', position: { row: 1, col: 1 }, score: 0, connected: false },
+        { id: 0, role: 'thief', position: { row: 1, col: 1 }, score: 0, connected: false }
     ],
     grid: {
         blocks: [],
@@ -133,7 +133,6 @@ function startGame(req, res) {
         gameData
     });
 }
-
 
 // Switch turn between farmer and thief
 function switchTurn(req, res) {
