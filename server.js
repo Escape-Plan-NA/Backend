@@ -31,6 +31,7 @@ app.use('/games', gameRoutes);
 app.use('/images', imageRoutes);
 app.use('/users', userRoutes);  // Mount the user routes on '/api'
 
+
 // Start the server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
