@@ -3,8 +3,8 @@ const { generateRandomGrid, getRandomFreeBlocks } = require('../utils/gridUtils'
 // Initial game state
 let gameData = {
     players: [
-        { id: 0, role: 'farmer', position: { row: 1, col: 1 }, score: 0, connected: false },
-        { id: 0, role: 'thief', position: { row: 1, col: 1 }, score: 0, connected: false }
+        { userId: '', role: 'farmer', position: { row: 1, col: 1 }, score: 0, connected: false },
+        { userId: '', role: 'thief', position: { row: 1, col: 1 }, score: 0, connected: false }
     ],
     grid: {
         blocks: [],
@@ -110,7 +110,22 @@ function getGameState(req, res) {
     res.json(gameData);
 }
 
-// Function to start the game
+function updateUserId(req, res) {
+    const { role, userId } = req.body;
+  
+    // Update the userId in the correct player's object
+    if (role === 'thief') {
+      gameData.players[1].userId = userId;  // Update thief's userId
+    } else if (role === 'farmer') {
+      gameData.players[0].userId = userId;  // Update farmer's userId
+    } else {
+      return res.status(400).json({ message: 'Invalid role' });
+    }
+    
+    res.json({ message: `${role} User ID updated successfully!`, gameData });
+}
+
+// Function to start the game (Single-player mode for thief)
 function startGame(req, res) {
     if (!gameData.currentTurn) {
         resetGame();  // Initialize the game state if it hasn't started
@@ -121,7 +136,6 @@ function startGame(req, res) {
 
     const io = req.app.get('io');  // Retrieve io from the app
 
-    // Check if `io` is undefined
     if (!io) {
         return res.status(500).json({ message: 'Socket.io is not initialized.' });
     }
@@ -149,7 +163,6 @@ function switchTurn(req, res) {
     });
 }
 
-// Move a player and update game state
 function movePlayer(req, res) {
     const { role, newPosition } = req.body;
 
@@ -227,6 +240,7 @@ module.exports = {
     startGame,
     switchTurn,
     movePlayer,
+    updateUserId,
     updateScore,
     resetGameAndScores: resetGameAndScoresController
 };
