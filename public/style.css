@@ -1,0 +1,119 @@
+/* General Styles */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0;
+  }
+  
+  h1 {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  
+  .main {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    height: 100vh; /* Adjust height as needed */
+  }
+  
+  /* Name Input */
+  .name {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  
+  .name-input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+  }
+  
+  /* Message Container */
+  .message-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: scroll;
+  }
+  
+  .message-left, .message-right {
+    list-style: none;
+    padding: 8px 12px;
+    margin: 12px;
+    max-width: 250px;
+    font-size: 18px;
+    border-radius: 5px;
+    word-wrap: break-word;
+  }
+  
+  .message-left {
+    border-radius: 20px 20px 20px 0px;
+    align-self: flex-start;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc; 
+  }
+  
+  .message-right {
+    border-radius: 20px 20px 0px 20px;
+    align-self: flex-end;
+    background-color: #dcf8c6;
+    border: 1px solid #9aff99;
+  }
+  
+  .message {
+    margin: 0;
+  }
+  
+  .message span {
+    font-size: 0.8em;
+    color: #888;
+  }
+  
+  /* Message Form */
+  .message-form {
+    display: flex;
+    margin-top: 20px;
+  }
+  
+  .message-input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+  }
+  
+  .v-divider {
+    border-left: 1px solid #ccc;
+    height: 30px;
+    margin: 0 10px;
+  }
+  
+  .send-button {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  
+  .send-button:hover {
+    background-color: #3e8e41;
+  }
+  
+  .send-button i {
+    margin-left: 5px;
+  }
+  
+  /* Client Total */
+  .client-total {
+    text-align: center;
+    margin-top: 20px;
+  }

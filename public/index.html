@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="style.css">
     <title>Socket.IO Escape Plan</title>
     <script src="/socket.io/socket.io.js"></script>
+    <script src="main.js"></script>
 </head>
 <body>
     <h1>Socket.IO Escape Plan</h1>
@@ -13,7 +16,6 @@
     <ul id="messages"></ul>
 
     <script>
-        const socket = io(); // Connect to the Socket.IO server
         const status = document.getElementById('status');
         const moveButton = document.getElementById('moveButton');
         const messages = document.getElementById('messages');
@@ -42,5 +44,37 @@
             console.log('Move sent:', moveData);
         });
     </script>
+
+    <h1>Chat</h1>
+    <div class="main">
+        <div class="name">
+            <span><i class="fa fa-user" aria-hidden="true"></i></span>
+            <input type="text" id="name-input" class="name-input" value="anonymous">
+        </div>
+        <ul class="message-container" id="message-container">
+            <li class="message-left">
+                <p class="message">
+                    Boost! Boost! Boost!
+                    <span>Pluck • 28 Oct, 02:50:05</span>
+                </p>
+            </li>
+
+            <li class="message-right">
+                <p class="message">
+                    Let's go!
+                    <span>Nine • 28 Oct, 02:50:50</span>
+                </p>
+            </li>
+        </ul>
+
+        <form class="message-form" id="message-form">
+            <input type="text" name="message" id="message-input" class="message-input">
+            <div class="v-divider"></div>
+            <button type="submit" class="send-button">
+                spend <span><i class="fas fa-paper-plane"></i></span>
+            </button>
+        </form>
+        <h3 class="client-total" id="client-total">Total clients: 2</h3>
+    </div>
 </body>
 </html>

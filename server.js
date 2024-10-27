@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const http = require('http');
 const bodyParser = require('body-parser');
@@ -20,6 +21,9 @@ app.use((req, res, next) => {
   console.log(`Request Method: ${req.method}, Request URL: ${req.url}`);
   next();
 });
+
+// Serve static files from the 'public' directory
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Importing other routes for games and images
 const gameRoutes = require('./routes/games');

@@ -8,11 +8,18 @@ function initSocket(server) {
     }
   });
 
+  let socketsConnected = new Set();
+
   io.on('connection', (socket) => {
     console.log('A player connected', socket.id);
-    
+    socketsConnected.add(socket.id);
+
+    io.emit('clients-total', socketsConnected.size);
+
     socket.on('disconnect', () => {
       console.log('Player disconnected', socket.id);
+      socketsConnected.delete(socket.id);
+      io.emit('clients-total', socketsConnected.size);
     });
   });
 
