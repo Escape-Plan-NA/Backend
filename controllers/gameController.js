@@ -233,6 +233,43 @@ function resetGameAndScoresController(req, res) {
     });
 }
 
+function surrenderGame(req, res) {
+    const { role } = req.body;
+    let opponentRole = role === 'farmer' ? 'thief' : 'farmer';
+    let opponentPlayer = gameData.players.find(player => player.role === opponentRole);
+
+    // Increase opponent's score
+    opponentPlayer.score += 1;
+
+    // Set game as over and specify winner
+    gameData.winner = opponentRole;
+
+    // Reset positions and assign turn to the winner
+    resetGame(opponentRole);
+
+    // Get the Socket.IO instance from the app
+    const io = req.app.get('io');
+    if (io) {
+        io.emit('update_state', gameData);  // Broadcast the updated game state
+    }
+
+    res.json({
+        message: `${opponentRole} wins due to surrender!`,
+        updatedScores: gameData.players.map(player => ({ role: player.role, score: player.score })),
+        winner: opponentRole,
+    });
+}
+
+
+function getGameData(req, res) {
+    res.json({
+        players: gameData.players,
+        currentTurn: gameData.currentTurn,
+        grid: gameData.grid
+    });
+}
+
+
 
 // Export the controller methods
 module.exports = {
@@ -242,5 +279,7 @@ module.exports = {
     movePlayer,
     updateUserId,
     updateScore,
+    surrenderGame,
+    getGameData,
     resetGameAndScores: resetGameAndScoresController
 };
