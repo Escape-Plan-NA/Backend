@@ -113,6 +113,7 @@ function handlePlayerMove(role, newPosition) {
 
     // Switch turns if no one wins
     gameData.currentTurn = gameData.currentTurn === 'farmer' ? 'thief' : 'farmer';
+    gameData.turnTimer = 10;
     return true;
 }
 
@@ -166,11 +167,11 @@ function startGame(req, res) {
 
     // Turn Timer: Switch turns every 10 seconds
     turnInterval = setInterval(() => {
-        if (gameData.turnTimer >= 0) {
+        if (gameData.turnTimer > 0) {
             gameData.turnTimer--;
         } else {
+            clearInterval(turnInterval);
             gameData.turnTimer = 10;  // Reset turn timer
-            switchTurn(req, res);  // Switch turn and broadcast
         }
         io.emit('timer_update', { gameTimer: gameData.gameTimer, turnTimer: gameData.turnTimer });
     }, 1000);
@@ -193,8 +194,7 @@ function startGame(req, res) {
 // Switch turn between farmer and thief
 function switchTurn(req, res) {
     gameData.currentTurn = gameData.currentTurn === 'farmer' ? 'thief' : 'farmer';
-    gameData.turnTimer = gameData.turnTimer === 10;
-    
+    gameData.turnTimer = 10;
     console.log('Turn switched to:', gameData.currentTurn);
 
     const io = req.app.get('io');
@@ -221,26 +221,14 @@ function movePlayer(req, res) {
         return res.status(400).json({ message: 'Invalid move' });
     }
 
-    // Reset the turn timer
-    gameData.turnTimer = 10; // Resetting the turn timer in the game state
-
-    // Emit the updated game state
-    const io = req.app.get('io'); // Assuming you're using socket.io for broadcasting
-    io.emit('update_state', {
-        grid: gameData.grid,
-        currentTurn: gameData.currentTurn,
-        players: gameData.players,
-        turnTimer: gameData.turnTimer // Broadcast the new turn timer
-    });
-
     res.json({
         message: 'Move processed',
         grid: gameData.grid,
         currentTurn: gameData.currentTurn,
-        players: gameData.players,
-        turnTimer: gameData.turnTimer // Send the new turn timer back to the client
+        players: gameData.players
     });
 }
+
 // Update the score based on the winner
 function updateScore(req, res) {
     const { winner } = req.body;
