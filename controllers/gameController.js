@@ -18,7 +18,7 @@ let gameData = {
 // Utility function to reset the game and scores
 function resetGameAndScores() {
     gameData.grid.blocks = generateRandomGrid();  // Generate a new grid
-    const [farmerPos, thiefPos] = getRandomFreeBlocks(gameData.grid.blocks);
+    const [farmerPos, thiefPos] = getRandomFreeBlocks(gameData.grid.blocks).map(({ row, col }) => ({ row, col }));
 
     // Reset player positions
     gameData.grid.farmerPosition = farmerPos;
@@ -40,7 +40,7 @@ function resetGameAndScores() {
 // Utility function to reset the game (without resetting the scores)
 function resetGame(winnerRole) {
     gameData.grid.blocks = generateRandomGrid();  // Generate a new grid
-    const [farmerPos, thiefPos] = getRandomFreeBlocks(gameData.grid.blocks);
+    const [farmerPos, thiefPos] = getRandomFreeBlocks(gameData.grid.blocks).map(({ row, col }) => ({ row, col }));
 
     // Reset player positions
     gameData.grid.farmerPosition = farmerPos;
@@ -71,7 +71,7 @@ function handlePlayerMove(role, newPosition) {
     }
 
     const blockType = gameData.grid.blocks[row][col];
-    if (blockType !== 'free' && !(blockType === 'tunnel' && role === 'thief')) {
+    if (!blockType.startsWith('free') && !(blockType === 'tunnel' && role === 'thief')) {
         console.log(`Invalid move: cannot move to a ${blockType} block`);
         return false;
     }
@@ -232,7 +232,6 @@ function resetGameAndScoresController(req, res) {
         gameData
     });
 }
-
 
 // Export the controller methods
 module.exports = {

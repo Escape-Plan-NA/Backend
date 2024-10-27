@@ -14,18 +14,18 @@ const IMAGE_URLS = {
   },
   mapTiles: {
     spring: {
-      free: [
-        'https://drive.google.com/uc?export=view&id=1wwgFYHrjkUICOaAPlBFmtQkeBQGuBhax',
-        'https://drive.google.com/uc?export=view&id=19U-i-OdPcZxjYMbex4tX9VFpM3O1TP9l'
-      ],
-      obstacle: 'https://drive.google.com/uc?export=view&id=1NCMFJsssJkhn4gZAw05n6YpoqSWTKWvQ',
-      tunnel: 'https://drive.google.com/uc?export=view&id=1vuCkIJ3WlV_MvbTNPflJ7dFCwlerSXEd'
+      free1: 'https://drive.google.com/uc?export=view&id=1oBIKQX7QKKSusPa6tmi1eeg4TD5z8wPA',
+      free2: 'https://drive.google.com/uc?export=view&id=19KvF4BINaJBJg_IiExs3bEl64i8GOXdc',
+      free3: 'https://drive.google.com/uc?export=view&id=1u3jnwo5vaCMtjXzCLDxlqRStg_C7mZ0e',
+      obstacle: 'https://drive.google.com/uc?export=view&id=1c0q2cMk4IA7g2tVW8PcQXOQqdi6KckW1',
+      tunnel: 'https://drive.google.com/uc?export=view&id=1vuCkIJ3WlV_MvbTNPflJ7dFCwlerSXEd',
+      background: 'https://drive.google.com/uc?export=view&id=1vl-Ne5yqW9Y_kErwgaS2WNcWr4Y_o3oz',
+      tree: 'https://drive.google.com/uc?export=view&id=1yjB8Ra9jOWrS9gBt2MNPl5jylmPkoOtW'
     },
     summer: {
-      free: [
-        'https://drive.google.com/uc?export=view&id=1KfS-iZiYiJrPeXk96KnPHEo9LFFgP76a',
-        'https://drive.google.com/uc?export=view&id=1xV3KESH4XERYJ8HDmkENOzifOA5mxDG1'
-      ],
+      free1: 'https://drive.google.com/uc?export=view&id=1xV3KESH4XERYJ8HDmkENOzifOA5mxDG1',
+      free2: 'https://drive.google.com/uc?export=view&id=1TZXN8a8m38RIh9pgN630VXRx2HvrU8rr',
+      free3: 'https://drive.google.com/uc?export=view&id=1vuCkIJ3WlV_MvbTNPflJ7dFCwlerSXEd',
       obstacle: 'https://drive.google.com/uc?export=view&id=1TZXN8a8m38RIh9pgN630VXRx2HvrU8rr',
       tunnel: 'https://drive.google.com/uc?export=view&id=1vuCkIJ3WlV_MvbTNPflJ7dFCwlerSXEd'
     }
@@ -33,19 +33,8 @@ const IMAGE_URLS = {
   cutscene: 'https://drive.google.com/uc?export=view&id=1eQj036N8z-maFdMNJbQvLqoeIgj80T5s'
 };
 
-// Helper function to get multiple random free tiles
-const getRandomFreeTiles = (season, count) => {
-  const freeTiles = IMAGE_URLS.mapTiles[season].free;
-  let result = [];
-  for (let i = 0; i < count; i++) {
-    const randomTile = freeTiles[Math.floor(Math.random() * freeTiles.length)];
-    result.push(randomTile);
-  }
-  return result;
-};
-
 async function getImage(req, res) {
-  const { type, category, role, season, count } = req.query;
+  const { type, category, role, season } = req.query;
 
   switch (type) {
     case 'character':
@@ -54,13 +43,20 @@ async function getImage(req, res) {
       }
       break;
     case 'tile':
-      if (season && category === 'free' && count) {
-        const freeTiles = getRandomFreeTiles(season, parseInt(count, 10));
-        return res.json(freeTiles);
+      if (season && category === 'free1') {
+        return res.redirect(IMAGE_URLS.mapTiles[season].free1);
+      } else if (season && category === 'free2') {
+        return res.redirect(IMAGE_URLS.mapTiles[season].free2);
+      } else if (season && category === 'free3') {
+        return res.redirect(IMAGE_URLS.mapTiles[season].free3);
       } else if (season && category === 'obstacle') {
         return res.redirect(IMAGE_URLS.mapTiles[season].obstacle);
       } else if (season && category === 'tunnel') {
         return res.redirect(IMAGE_URLS.mapTiles[season].tunnel);
+      } else if (season && category === 'background') {
+        return res.redirect(IMAGE_URLS.mapTiles[season].background);
+      } else if (season && category === 'tree') {
+        return res.redirect(IMAGE_URLS.mapTiles[season].tree);
       }
       break;
     case 'cutscene':
@@ -71,3 +67,4 @@ async function getImage(req, res) {
 }
 
 module.exports = { getImage };
+
