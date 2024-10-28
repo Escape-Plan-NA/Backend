@@ -11,19 +11,22 @@ function initSocket(server) {
   let socketsConnected = new Set();
 
   io.on('connection', (socket) => {
+    //store socket id
     console.log('A player connected', socket.id);
     socketsConnected.add(socket.id);
-
+    //emit total clients connected
     io.emit('clients-total', socketsConnected.size);
 
     socket.on('disconnect', () => {
+      //delete socket id
       console.log('Player disconnected', socket.id);
       socketsConnected.delete(socket.id);
+      //emit total clients connected
       io.emit('clients-total', socketsConnected.size);
     });
-
+    
     socket.on('message', (data) => {
-      console.log(data);
+      io.emit('message', data);
       socket.broadcast.emit('chat-message', data);
     });
   });

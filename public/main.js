@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const nameInput = document.getElementById('name-input');
     const messageForm = document.getElementById('message-form');
     const messageInput = document.getElementById('message-input');    
-
+    //submit button
     messageForm.addEventListener('submit', (e) => {
         e.preventDefault();
         sendMessage();
@@ -26,11 +26,12 @@ document.addEventListener('DOMContentLoaded', () => {
             message: messageInput.value,
             date: new Date() 
         };
+        //send 'message' event to others and update on the left side
         socket.emit('message', data);
         addMessageToUI(true, data);
         messageInput.value = '';
     }
-
+    //receive 'chat-message' event and update on the right side
     socket.on('chat-message', (data) => {
         addMessageToUI(false, data); 
     })
