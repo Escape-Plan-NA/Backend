@@ -168,6 +168,7 @@ function startGame(req, res) {
         if (gameData.turnTimer > -1) {
             gameData.turnTimer--;
         } else {
+            switchTurn(io);
             clearInterval(turnInterval);
             gameData.turnTimer = 10;  // Reset turn timer
         }
