@@ -12,8 +12,12 @@ let gameData = {
         thiefPosition: { row: 1, col: 1 }
     },
     currentTurn: 'thief',  // Start with the thief's turn
-    winner: null
+    winner: null,
+    gameTimer: 60,  // Initialize game timer
+    turnTimer: 10
 };
+let gameInterval;
+let turnInterval;
 
 // Utility function to reset the game and scores
 function resetGameAndScores() {
@@ -33,6 +37,11 @@ function resetGameAndScores() {
     // Reset turn and winner
     gameData.currentTurn = 'thief';  // Start with the thief
     gameData.winner = null;
+    // Reset game timer
+    gameData.turnTimer = 10;
+
+    clearInterval(gameInterval);
+    clearInterval(turnInterval);
 
     console.log('Game and scores have been reset');
 }
@@ -58,6 +67,8 @@ function resetGame(winnerRole) {
     }
 
     gameData.winner = null;
+ // Reset game timer
+    gameData.turnTimer = 10;
 }
 
 // Function to handle player movement and check for a winner
@@ -100,6 +111,7 @@ function handlePlayerMove(role, newPosition) {
 
     // Switch turns if no one wins
     gameData.currentTurn = gameData.currentTurn === 'farmer' ? 'thief' : 'farmer';
+    gameData.turnTimer = 10;
     return true;
 }
 
@@ -133,8 +145,38 @@ function startGame(req, res) {
     } else {
         console.log(`Game already started with ${gameData.currentTurn} taking the turn.`);
     }
+    gameData.gameTimer = 60;
+    gameData.turnTimer = 10;
 
     const io = req.app.get('io');  // Retrieve io from the app
+
+    if (gameInterval) clearInterval(gameInterval);
+    if (turnInterval) clearInterval(turnInterval);
+    gameInterval = setInterval(() => {
+        if (gameData.gameTimer > 0) {
+            gameData.gameTimer--;
+        } else {
+            clearInterval(gameInterval);
+            clearInterval(turnInterval);
+            io.emit('game_over', { message: 'Game over', gameData });
+        }
+    }, 1000);
+    
+
+    // Turn Timer: Switch turns every 10 seconds
+    turnInterval = setInterval(() => {
+        if (gameData.turnTimer > -1) {
+            gameData.turnTimer--;
+        } else {
+            switchTurn(io);
+            clearInterval(turnInterval);
+            gameData.turnTimer = 10;  // Reset turn timer
+        }
+        io.emit('timer_update', { gameTimer: gameData.gameTimer, turnTimer: gameData.turnTimer });
+    }, 1000);
+
+    io.emit('update_state', gameData);
+    res.json({ message: 'Game started', gameData });
 
     if (!io) {
         return res.status(500).json({ message: 'Socket.io is not initialized.' });
@@ -151,6 +193,7 @@ function startGame(req, res) {
 // Switch turn between farmer and thief
 function switchTurn(req, res) {
     gameData.currentTurn = gameData.currentTurn === 'farmer' ? 'thief' : 'farmer';
+    gameData.turnTimer = 10;
     console.log('Turn switched to:', gameData.currentTurn);
 
     const io = req.app.get('io');
@@ -218,6 +261,9 @@ function updateScore(req, res) {
 // Controller for resetting the game and scores
 function resetGameAndScoresController(req, res) {
     resetGameAndScores();  // Reset the game and scores
+
+    clearInterval(gameInterval);
+    clearInterval(turnInterval);
 
     const io = req.app.get('io');  // Access Socket.IO from the Express app
 
