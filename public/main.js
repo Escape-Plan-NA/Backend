@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <li class="${isOwnMessage ? "message-right" : "message-left"}">
                 <p class="message">
                     ${data.message}
-                    <span>${data.name} • ${moment(data.date).fromNow()}</span>
+                    <span>${data.name} • ${moment(data.date)}</span>
                 </p>
             </li>
         `;
