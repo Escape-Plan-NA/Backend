@@ -37,8 +37,7 @@ function resetGameAndScores() {
     // Reset turn and winner
     gameData.currentTurn = 'thief';  // Start with the thief
     gameData.winner = null;
-
-    gameData.gameTimer = 60; // Reset game timer
+    // Reset game timer
     gameData.turnTimer = 10;
 
     clearInterval(gameInterval);
@@ -68,8 +67,7 @@ function resetGame(winnerRole) {
     }
 
     gameData.winner = null;
-
-    gameData.gameTimer = 60; // Reset game timer
+ // Reset game timer
     gameData.turnTimer = 10;
 }
 
@@ -167,7 +165,7 @@ function startGame(req, res) {
 
     // Turn Timer: Switch turns every 10 seconds
     turnInterval = setInterval(() => {
-        if (gameData.turnTimer > 0) {
+        if (gameData.turnTimer > -1) {
             gameData.turnTimer--;
         } else {
             clearInterval(turnInterval);
