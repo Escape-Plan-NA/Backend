@@ -1,17 +1,21 @@
+const cors = require('cors');
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 
 const app = express();
+app.use(cors({ origin: 'http://localhost:5173' })); // Enable CORS for Express
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: 'http://localhost:5173',
     methods: ["GET", "POST"],
   },
   pingInterval: 10000,
   pingTimeout: 5000,
 });
+
 
 let gameData = {
   players: [
@@ -61,7 +65,7 @@ function getRandomFreeBlocks(grid) {
   return freeBlocks.sort(() => Math.random() - 0.5).slice(0, 2);
 }
 
-function resetAllGameData() {
+function stopGame() {
   gameData = {
     players: [
       { userId: null, role: 'farmer', position: { row: 1, col: 1 }, score: 0, connected: false, ready: false },
@@ -85,13 +89,12 @@ function resetAllGameData() {
   sessionTimer = null;
   turnTimer = null;
 
-  console.log("Game data has been fully reset to the initial state.");
-  console.log(gameData);
+  console.log("Game stopped, clearing all gameData");
   io.emit('gameReset', gameData); // Notify clients of the reset
 }
 
 // Reset game state to initial positions
-function resetGameState(winnerRole = 'thief', resetScores = false) {
+function resetGameState(winnerRole = 'thief', resetScores = false, resetTime = false) {
   gameData.grid.blocks = generateRandomGrid();
   const [farmerPos, thiefPos] = getRandomFreeBlocks(gameData.grid.blocks);
   gameData.grid.farmerPosition = farmerPos;
@@ -102,11 +105,16 @@ function resetGameState(winnerRole = 'thief', resetScores = false) {
   if (resetScores) {
     gameData.players[0].score = 0;
     gameData.players[1].score = 0;
+    console.log(`Game scores reset. Starting turn: ${gameData.currentTurn}`);
+  }
+  
+  if (resetTime) {
+    gameData.timeLeft = 60;
+    console.log(`Game time reset. Starting turn: ${gameData.currentTurn}`);
   }
 
   gameData.currentTurn = winnerRole || 'thief';
   gameData.winner = null;
-  gameData.timeLeft = 60;
   gameData.turnTimeLeft = 10;
 
   io.emit('timerUpdate', { timeLeft: gameData.timeLeft, turnTimeLeft: gameData.turnTimeLeft });
@@ -115,8 +123,8 @@ function resetGameState(winnerRole = 'thief', resetScores = false) {
   if (sessionTimer) clearInterval(sessionTimer);
   if (turnTimer) clearInterval(turnTimer);
 
-  startTimers();
-  console.log(`Game reset to initial state. Starting turn: ${gameData.currentTurn}`);
+  if (gameData.gameStarted) startTimers();
+  //console.log(`Game reset to initial state. Starting turn: ${gameData.currentTurn}`);
 }
 
 // Start timers for session and turns
@@ -124,7 +132,7 @@ function startTimers() {
   sessionTimer = setInterval(() => {
     gameData.timeLeft -= 1;
     if (gameData.timeLeft <= 0) {
-      resetGameAndScores();
+      endSession();
       gameData.timeLeft = 60;
     }
     io.emit('timerUpdate', { timeLeft: gameData.timeLeft, turnTimeLeft: gameData.turnTimeLeft });
@@ -150,7 +158,13 @@ function switchTurn() {
 
 // Reset game and scores
 function resetGameAndScores() {
-  resetGameState(null, true);
+  resetGameState(null, true, true);
+}
+
+function endSession() {
+  stopGame(); // Clears game data and timers
+  io.emit('sessionEnded'); // Notify clients that the session has ended
+  console.log("Session has ended. Game stopped.");
 }
 
 // Emit updated player status to all clients
@@ -158,16 +172,20 @@ function updateAllClientsWithPlayerStatus() {
   io.emit('currentPlayerStatus', { players: gameData.players });
 }
 
-// Assign a role to a player, prioritizing empty slots
 function assignRandomRole(socket) {
   const availablePlayers = gameData.players.filter(player => !player.connected);
   if (availablePlayers.length === 0) return null;
 
-  const selectedPlayer = availablePlayers[0];
+  // Select a random player from the available players
+  const randomIndex = Math.floor(Math.random() * availablePlayers.length);
+  const selectedPlayer = availablePlayers[randomIndex];
+
   selectedPlayer.userId = socket.id;
   selectedPlayer.connected = true;
+
   return selectedPlayer.role;
 }
+
 
 function checkIfGameCanStart() {
   const allReady = gameData.players.every(player => player.connected && player.ready);
@@ -187,15 +205,36 @@ function checkIfGameCanStart() {
   }
 }
 
+app.get('/api/get-role/:socketID', (req, res) => {
+  const { socketID } = req.params;
+  
+  // Find the player in gameData.players with a matching userId
+  const player = gameData.players.find(player => player.userId === socketID);
+
+  if (player && player.role) {
+    // If a player with the matching userId is found, return the role
+    res.json({ role: player.role });
+  } else {
+    // If no player is found, return a 404 error
+    res.status(404).json({ error: "Role not found for this socketID." });
+  }
+});
+
+
+
 // WebSocket Connection Handling
 io.on('connection', (socket) => {
   console.log(`A player connected: ${socket.id}`);
+  
   
   // Assign a role to the new player
   const role = assignRandomRole(socket);
   if (role) {
     console.log(`Assigned role ${role} to player with ID: ${socket.id}`);
-    socket.emit('playerConnected', { role }); // Send the assigned role to the client
+    socket.emit('playerConnected', { role });
+    console.log(`Emitting 'playerConnected' to client with role: ${role}`);
+
+ // Send the assigned role to the client
     updateAllClientsWithPlayerStatus();       // Update all clients with player status
   } else {
     console.log("Lobby is full, disconnecting:", socket.id);
@@ -206,7 +245,9 @@ io.on('connection', (socket) => {
 
   socket.on('joinLobby', () => {
     updateAllClientsWithPlayerStatus();
+    console.log("Client joined lobby and received player status.");
   });
+  
 
   socket.on('playerReady', () => {
     const player = gameData.players.find(p => p.userId === socket.id);
@@ -251,7 +292,7 @@ io.on('connection', (socket) => {
 
       if (newPosition.row === gameData.grid.thiefPosition.row && newPosition.col === gameData.grid.thiefPosition.col) {
         gameData.players[0].score++;
-        resetGameState('farmer');
+        resetGameState('farmer', false, false);
         io.emit('winner', { winner: 'farmer', scores: { farmer: gameData.players[0].score, thief: gameData.players[1].score } });
         return;
       }
@@ -261,14 +302,14 @@ io.on('connection', (socket) => {
 
       if (newPosition.row === gameData.grid.farmerPosition.row && newPosition.col === gameData.grid.farmerPosition.col) {
         gameData.players[0].score++;
-        resetGameState('farmer');
+        resetGameState('farmer', false, false);
         io.emit('winner', { winner: 'farmer', scores: { farmer: gameData.players[0].score, thief: gameData.players[1].score } });
         return;
       }
 
       if (blockType === 'tunnel') {
         gameData.players[1].score++;
-        resetGameState('thief');
+        resetGameState('thief', false, false);
         io.emit('winner', { winner: 'thief', scores: { farmer: gameData.players[0].score, thief: gameData.players[1].score } });
         return;
       }
@@ -291,7 +332,7 @@ io.on('connection', (socket) => {
       io.emit('playerDisconnected', { role: disconnectedPlayer.role });
 
       // Reset all game data to the initial state
-      resetAllGameData();
+      stopGame();
     }
   });
 });
