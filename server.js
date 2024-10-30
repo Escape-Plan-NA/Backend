@@ -12,7 +12,7 @@ const io = new Server(server, {
     origin: 'http://localhost:5173',
     methods: ["GET", "POST"],
   },
-  pingInterval: 10000,
+  pingInterval: 50,
   pingTimeout: 5000,
 });
 
@@ -152,7 +152,7 @@ function startTimers() {
 function switchTurn() {
   gameData.currentTurn = gameData.currentTurn === 'farmer' ? 'thief' : 'farmer';
   io.emit('gameState', gameData);
-  gameData.turnTimeLeft = 10;
+  gameData.turnTimeLeft = 11;
   console.log(`Turn switched to: ${gameData.currentTurn}`);
 }
 
@@ -220,6 +220,12 @@ app.get('/api/get-role/:socketID', (req, res) => {
   }
 });
 
+function logMove(playerRole, oldPosition, newPosition, score) {
+  const logMessage = `${playerRole} moved from (${oldPosition.row}, ${oldPosition.col}) to (${newPosition.row}, ${newPosition.col}). Current score: ${score}`;
+  console.log("[Move Log]", logMessage);
+  console.log("[Move Log]", logMessage);
+  io.emit("moveLog", logMessage); // Emit the log message to all connected clients
+}
 
 
 // WebSocket Connection Handling
@@ -284,6 +290,8 @@ io.on('connection', (socket) => {
       console.log(`Invalid move: cannot move to a ${blockType} block`);
       return;
     }
+
+    logMove(role, player.position, newPosition, player.score);
 
     // Update positions and check for win conditions
     if (role === 'farmer') {
