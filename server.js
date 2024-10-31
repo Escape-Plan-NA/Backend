@@ -107,7 +107,7 @@ function resetGameState(winnerRole = 'thief', resetScores = false, resetTime = f
     gameData.players[1].score = 0;
     console.log(`Game scores reset. Starting turn: ${gameData.currentTurn}`);
   }
-  
+
   if (resetTime) {
     gameData.timeLeft = 60;
     console.log(`Game time reset. Starting turn: ${gameData.currentTurn}`);
@@ -207,7 +207,7 @@ function checkIfGameCanStart() {
 
 app.get('/api/get-role/:socketID', (req, res) => {
   const { socketID } = req.params;
-  
+
   // Find the player in gameData.players with a matching userId
   const player = gameData.players.find(player => player.userId === socketID);
 
@@ -225,8 +225,8 @@ app.get('/api/get-role/:socketID', (req, res) => {
 // WebSocket Connection Handling
 io.on('connection', (socket) => {
   console.log(`A player connected: ${socket.id}`);
-  
-  
+
+
   // Assign a role to the new player
   const role = assignRandomRole(socket);
   if (role) {
@@ -234,7 +234,7 @@ io.on('connection', (socket) => {
     socket.emit('playerConnected', { role });
     console.log(`Emitting 'playerConnected' to client with role: ${role}`);
 
- // Send the assigned role to the client
+    // Send the assigned role to the client
     updateAllClientsWithPlayerStatus();       // Update all clients with player status
   } else {
     console.log("Lobby is full, disconnecting:", socket.id);
@@ -247,7 +247,14 @@ io.on('connection', (socket) => {
     updateAllClientsWithPlayerStatus();
     console.log("Client joined lobby and received player status.");
   });
-  
+
+  // Listen for chat messages from clients
+  socket.on('chatMessage', (msg) => {
+    console.log('Received message:', msg);
+    // Broadcast the message to all connected clients
+    io.emit('chatMessage', msg);
+  });
+
 
   socket.on('playerReady', () => {
     const player = gameData.players.find(p => p.userId === socket.id);
