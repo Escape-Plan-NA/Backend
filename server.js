@@ -205,6 +205,12 @@ function checkIfGameCanStart() {
   }
 }
 
+function logMove(playerRole, direction) {
+  const logMessage = `${playerRole} moved ${direction}`;
+  console.log("[Move Log]", logMessage);
+  io.emit("moveLog", logMessage); // Emit the log message to all connected clients
+}
+
 app.get('/api/get-role/:socketID', (req, res) => {
   const { socketID } = req.params;
 
@@ -226,25 +232,30 @@ app.get('/api/get-role/:socketID', (req, res) => {
 io.on('connection', (socket) => {
   console.log(`A player connected: ${socket.id}`);
 
-
-  // Assign a role to the new player
-  const role = assignRandomRole(socket);
-  if (role) {
-    console.log(`Assigned role ${role} to player with ID: ${socket.id}`);
-    socket.emit('playerConnected', { role });
-    console.log(`Emitting 'playerConnected' to client with role: ${role}`);
-
-    // Send the assigned role to the client
-    updateAllClientsWithPlayerStatus();       // Update all clients with player status
-  } else {
-    console.log("Lobby is full, disconnecting:", socket.id);
-    socket.emit('error', { message: "Lobby is full." });
-    socket.disconnect();
-    return;
-  }
-
   socket.on('joinLobby', () => {
-    updateAllClientsWithPlayerStatus();
+    // Check if the user already has a role assigned
+    const existingPlayer = gameData.players.find(player => player.userId === socket.id);
+  
+    if (existingPlayer) {
+      console.log(`Player with ID ${socket.id} already has a role: ${existingPlayer.role}`);
+      socket.emit('playerConnected', { role: existingPlayer.role });
+      return; // Exit to prevent assigning a new role
+    }
+  
+    const role = assignRandomRole(socket);
+    if (role) {
+      console.log(`Assigned role ${role} to player with ID: ${socket.id}`);
+      socket.emit('playerConnected', { role });
+      console.log(`Emitting 'playerConnected' to client with role: ${role}`);
+  
+      // Send the assigned role to the client
+      updateAllClientsWithPlayerStatus(); // Update all clients with player status
+    } else {
+      console.log("Lobby is full, disconnecting:", socket.id);
+      socket.emit('error', { message: "Lobby is full." });
+      socket.disconnect();
+    }
+  
     console.log("Client joined lobby and received player status.");
   });
 
@@ -265,38 +276,63 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Handle player moves
-  socket.on('move', ({ role, newPosition }) => {
+  socket.on('move', ({ role, direction }) => {
     const player = gameData.players.find(p => p.role === role && p.userId === socket.id);
-
+  
     if (!player || gameData.currentTurn !== role) {
       socket.emit('error', { message: `Invalid move: It's not ${role}'s turn or player is not recognized.` });
       return;
     }
-
-    const { row, col } = newPosition;
-
+  
+    // Calculate new position based on direction
+    let newPosition = { ...player.position };
+    switch (direction) {
+      case "up":
+        newPosition.row -= 1;
+        break;
+      case "down":
+        newPosition.row += 1;
+        break;
+      case "left":
+        newPosition.col -= 1;
+        break;
+      case "right":
+        newPosition.col += 1;
+        break;
+      default:
+        logMove(role, "invalid move");
+        return;
+    }
+  
+    // Validate the move is within grid boundaries
     if (
-      row < 0 || row >= gameData.grid.blocks.length ||
-      col < 0 || col >= gameData.grid.blocks[row].length
+      newPosition.row < 0 ||
+      newPosition.row >= gameData.grid.blocks.length ||
+      newPosition.col < 0 ||
+      newPosition.col >= gameData.grid.blocks[0].length
     ) {
-      console.log("Invalid move: position out of bounds.");
+      logMove(role, "invalid move");
       socket.emit('error', { message: "Invalid move: position out of bounds." });
       return;
     }
-
-    const blockType = gameData.grid.blocks[row][col];
-
+  
+    const blockType = gameData.grid.blocks[newPosition.row][newPosition.col];
+  
+    // Check if move is to a valid block type
     if (!blockType.startsWith('free') && !(blockType === 'tunnel' && role === 'thief')) {
-      console.log(`Invalid move: cannot move to a ${blockType} block`);
+      //logMove(role, "invalid move");
+      socket.emit('error', { message: `Invalid move: cannot move to a ${blockType} block.` });
       return;
     }
-
-    // Update positions and check for win conditions
+  
+    logMove(role, direction);
+  
+    // Update the player position and check for win conditions
+    player.position = newPosition;
+  
     if (role === 'farmer') {
       gameData.grid.farmerPosition = newPosition;
-      gameData.players[0].position = newPosition;
-
+  
       if (newPosition.row === gameData.grid.thiefPosition.row && newPosition.col === gameData.grid.thiefPosition.col) {
         gameData.players[0].score++;
         resetGameState('farmer', false, false);
@@ -305,15 +341,14 @@ io.on('connection', (socket) => {
       }
     } else if (role === 'thief') {
       gameData.grid.thiefPosition = newPosition;
-      gameData.players[1].position = newPosition;
-
+  
       if (newPosition.row === gameData.grid.farmerPosition.row && newPosition.col === gameData.grid.farmerPosition.col) {
         gameData.players[0].score++;
         resetGameState('farmer', false, false);
         io.emit('winner', { winner: 'farmer', scores: { farmer: gameData.players[0].score, thief: gameData.players[1].score } });
         return;
       }
-
+  
       if (blockType === 'tunnel') {
         gameData.players[1].score++;
         resetGameState('thief', false, false);
@@ -321,7 +356,7 @@ io.on('connection', (socket) => {
         return;
       }
     }
-
+  
     switchTurn();
   });
 
@@ -345,4 +380,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = 3000;
-server.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://127.0.0.1:${PORT}`));
+server.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://127.0.0.1:${PORT}`, gameData));
