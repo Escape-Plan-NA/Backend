@@ -19,8 +19,8 @@ const io = new Server(server, {
 
 let gameData = {
   players: [
-    { userId: null, role: 'farmer', position: { row: 1, col: 1 }, score: 0, connected: false, ready: false },
-    { userId: null, role: 'thief', position: { row: 1, col: 1 }, score: 0, connected: false, ready: false }
+    { userId: null, username: '', image_id: '', role: 'farmer', position: { row: 1, col: 1 }, score: 0, connected: false, ready: false },
+    { userId: null, username: '', image_id: '', role: 'thief', position: { row: 1, col: 1 }, score: 0, connected: false, ready: false }
   ],
   grid: {
     blocks: [],
@@ -226,36 +226,54 @@ app.get('/api/get-role/:socketID', (req, res) => {
   }
 });
 
+app.get('/api/gameData', (req, res) => {
+  // Extract the relevant data you want to send to the client
+  const playerData = gameData.players.map(player => ({
+    userId: player.userId,
+    username: player.username,
+    role: player.role,
+    image_id: player.image_id // Only send the image ID, not the full URL
+  }));
+  
+  res.json({ players: playerData });
+});
 
-
+let totalConnectedClients = 0;
+let connectedPlayerCount = 0; 
 // WebSocket Connection Handling
 io.on('connection', (socket) => {
-  console.log(`A player connected: ${socket.id}`);
+  totalConnectedClients++;
+  io.emit('totalConnectedClients', totalConnectedClients); // Emit the updated count to all clients
+  console.log(`A player connected: ${socket.id}. Total connected clients: ${totalConnectedClients}`);
+
+  setTimeout(() => {
+    socket.emit('totalConnectedClients', totalConnectedClients);
+  }, 50); // Delay to ensure the client is ready to receive the event
 
   socket.on('joinLobby', () => {
     // Check if the user already has a role assigned
     const existingPlayer = gameData.players.find(player => player.userId === socket.id);
-  
+
     if (existingPlayer) {
       console.log(`Player with ID ${socket.id} already has a role: ${existingPlayer.role}`);
       socket.emit('playerConnected', { role: existingPlayer.role });
       return; // Exit to prevent assigning a new role
     }
-  
+
     const role = assignRandomRole(socket);
     if (role) {
       console.log(`Assigned role ${role} to player with ID: ${socket.id}`);
       socket.emit('playerConnected', { role });
-      console.log(`Emitting 'playerConnected' to client with role: ${role}`);
-  
-      // Send the assigned role to the client
-      updateAllClientsWithPlayerStatus(); // Update all clients with player status
+
+      // Increment the player count and emit to all clients
+      connectedPlayerCount++;
+      io.emit('connectedPlayerCount', connectedPlayerCount);
     } else {
       console.log("Lobby is full, disconnecting:", socket.id);
       socket.emit('error', { message: "Lobby is full." });
       socket.disconnect();
     }
-  
+
     console.log("Client joined lobby and received player status.");
   });
 
@@ -267,14 +285,19 @@ io.on('connection', (socket) => {
   });
 
 
-  socket.on('playerReady', () => {
-    const player = gameData.players.find(p => p.userId === socket.id);
+  socket.on('playerReady', ({ userId, username, profilePictureId }) => {
+    const player = gameData.players.find(p => p.userId === userId);
     if (player) {
       player.ready = true;
-      console.log(`${player.role} is ready.`);
+      player.username = username;       // Update the player's username
+      player.image_id = profilePictureId; // Update the player's profile picture (image_id field)
+      
+      console.log(`${player.role} is ready with username: ${username} and profile picture: ${profilePictureId}`, gameData.players);
+      
       checkIfGameCanStart(); // Check if the game can start now
     }
   });
+  
 
   socket.on('move', ({ role, direction }) => {
     const player = gameData.players.find(p => p.role === role && p.userId === socket.id);
@@ -362,21 +385,31 @@ io.on('connection', (socket) => {
 
   socket.on('resetGame', resetGameAndScores);
 
-  // WebSocket disconnect handler
   socket.on('disconnect', () => {
     const disconnectedPlayer = gameData.players.find(p => p.userId === socket.id);
+
+    // Handle player disconnection in gameData if applicable
     if (disconnectedPlayer) {
       disconnectedPlayer.connected = false;
       disconnectedPlayer.userId = null;
       disconnectedPlayer.ready = false;
       console.log(`Player with role ${disconnectedPlayer.role} disconnected: ${socket.id}`);
 
-      io.emit('playerDisconnected', { role: disconnectedPlayer.role });
+      // Decrement lobby-specific connectedPlayerCount and emit to all clients
+      connectedPlayerCount = Math.max(connectedPlayerCount - 1, 0);
+      io.emit('connectedPlayerCount', connectedPlayerCount);
 
-      // Reset all game data to the initial state
-      stopGame();
+      if (connectedPlayerCount === 0) {
+        stopGame();
+      }
     }
+
+    // Decrement totalConnectedClients and emit the updated count to all clients
+    totalConnectedClients = Math.max(totalConnectedClients - 1, 0);
+    io.emit('totalConnectedClients', totalConnectedClients);
+    console.log(`Total connected clients after disconnect: ${totalConnectedClients}`);
   });
+  
 });
 
 const PORT = 3000;
