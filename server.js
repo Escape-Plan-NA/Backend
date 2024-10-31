@@ -107,7 +107,7 @@ function resetGameState(winnerRole = 'thief', resetScores = false, resetTime = f
     gameData.players[1].score = 0;
     console.log(`Game scores reset. Starting turn: ${gameData.currentTurn}`);
   }
-  
+
   if (resetTime) {
     gameData.timeLeft = 60;
     console.log(`Game time reset. Starting turn: ${gameData.currentTurn}`);
@@ -182,6 +182,8 @@ function assignRandomRole(socket) {
 
   selectedPlayer.userId = socket.id;
   selectedPlayer.connected = true;
+  selectedPlayer.username = username; //store username of the player
+  console.log(`Assigned role ${selectedPlayer.role} to player ${username} (ID: ${socket.id})`);
 
   return selectedPlayer.role;
 }
@@ -206,8 +208,10 @@ function checkIfGameCanStart() {
 }
 
 app.get('/api/get-role/:socketID', (req, res) => {
+
+  console.log("Getting role.. I am in the server")
   const { socketID } = req.params;
-  
+
   // Find the player in gameData.players with a matching userId
   const player = gameData.players.find(player => player.userId === socketID);
 
@@ -225,29 +229,33 @@ app.get('/api/get-role/:socketID', (req, res) => {
 // WebSocket Connection Handling
 io.on('connection', (socket) => {
   console.log(`A player connected: ${socket.id}`);
-  
-  
-  // Assign a role to the new player
-  const role = assignRandomRole(socket);
-  if (role) {
-    console.log(`Assigned role ${role} to player with ID: ${socket.id}`);
-    socket.emit('playerConnected', { role });
-    console.log(`Emitting 'playerConnected' to client with role: ${role}`);
 
- // Send the assigned role to the client
-    updateAllClientsWithPlayerStatus();       // Update all clients with player status
-  } else {
-    console.log("Lobby is full, disconnecting:", socket.id);
-    socket.emit('error', { message: "Lobby is full." });
-    socket.disconnect();
-    return;
-  }
+  //listen for username from the client
+  socket.on('setUsername', (username) => {
+
+
+    // Assign a role to the new player
+    const role = assignRandomRole(socket);
+    if (role) {
+      console.log(`Assigned role ${role} to ${username}  with ID: ${socket.id}`);
+      socket.emit('playerConnected', { role, username });
+      console.log(`Emitting 'playerConnected' to client ${username} with role: ${role}`);
+
+      // Send the assigned role to the client
+      updateAllClientsWithPlayerStatus();       // Update all clients with player status
+    } else {
+      console.log("Lobby is full, disconnecting:", socket.id);
+      socket.emit('error', { message: "Lobby is full." });
+      socket.disconnect();
+      return;
+    }
+  });
 
   socket.on('joinLobby', () => {
     updateAllClientsWithPlayerStatus();
     console.log("Client joined lobby and received player status.");
   });
-  
+
 
   socket.on('playerReady', () => {
     const player = gameData.players.find(p => p.userId === socket.id);
