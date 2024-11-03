@@ -5,9 +5,56 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Socket.IO Escape Plan</title>
     <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center; 
+            margin: 0;
+            padding: 20px;
+            background-color: #e0e64879;
+        }
+        .connection-count {
+            margin: 20px auto; 
+            padding: 15px;
+            border: 2px solid #9dcb61; /**border **/
+            border-radius: 10px; 
+            background-color: #9298e1; /**bg color **/
+            width: 50%; 
+        }
+        h1 {
+            color: #333;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 10px;
+            border: none;
+            background-color: #007BFF;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin: 5px 0;
+            padding: 8px;
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+    </style>
 </head>
 <body>
     <h1>Socket.IO Escape Plan</h1>
+    <div class="connection-count"> 
+        <p>Connections: <span id="connectionCount">0</span></p>
+    </div>
     <p>Status: <span id="status">Disconnected</span></p>
     <button id="moveButton">Make a Move</button>
     <ul id="messages"></ul>
@@ -17,6 +64,7 @@
         const status = document.getElementById('status');
         const moveButton = document.getElementById('moveButton');
         const messages = document.getElementById('messages');
+        const connectionCount = document.getElementById('connectionCount'); 
 
         socket.on('connect', () => {
             status.textContent = 'Connected';
@@ -33,6 +81,10 @@
             item.textContent = 'Move received: ' + JSON.stringify(data);
             messages.appendChild(item);
             window.scrollTo(0, document.body.scrollHeight);
+        });
+
+        socket.on('update_connection_count', (count) => {
+            connectionCount.textContent = count; 
         });
 
         // Simulate a move on button click
