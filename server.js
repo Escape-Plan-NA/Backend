@@ -4,7 +4,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 
 const app = express();
-app.use(cors({ origin: 'http://localhost:5173' })); // Enable CORS for Express
+app.use(cors({ origin: 'http://localhost:5173' }));
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -16,7 +16,7 @@ const io = new Server(server, {
   pingTimeout: 5000,
 });
 
-
+let isGameStarted = false;
 let gameData = {
   players: [
     { userId: null, username: '', image_id: '', role: 'farmer', position: { row: 1, col: 1 }, score: 0, connected: false, ready: false },
@@ -37,7 +37,6 @@ let gameData = {
 let turnTimer = null;
 let sessionTimer = null;
 
-// Helper function to generate the grid
 function generateRandomGrid() {
   let blocks = Array(25).fill('free');
   for (let i = 0; i < 5; i++) blocks[i] = 'obstacle';
@@ -52,7 +51,6 @@ function generateRandomGrid() {
   return grid;
 }
 
-// Helper function to get random free blocks for placing players
 function getRandomFreeBlocks(grid) {
   const freeBlocks = [];
   grid.forEach((row, rowIndex) => {
@@ -83,17 +81,23 @@ function stopGame() {
     gameStarted: false
   };
 
-  // Clear timers
   if (sessionTimer) clearInterval(sessionTimer);
   if (turnTimer) clearInterval(turnTimer);
   sessionTimer = null;
   turnTimer = null;
 
   console.log("Game stopped, clearing all gameData");
-  io.emit('gameReset', gameData); // Notify clients of the reset
+
+  io.emit('gameReset', gameData);
+  io.emit('leftLobby');
+  console.log("left lobby called");
+
+  connectedPlayerCount = 0;
+  io.emit('connectedPlayerCount', connectedPlayerCount);
+
+  isGameStarted = false;
 }
 
-// Reset game state to initial positions
 function resetGameState(winnerRole = 'thief', resetScores = false, resetTime = false) {
   gameData.grid.blocks = generateRandomGrid();
   const [farmerPos, thiefPos] = getRandomFreeBlocks(gameData.grid.blocks);
@@ -124,10 +128,8 @@ function resetGameState(winnerRole = 'thief', resetScores = false, resetTime = f
   if (turnTimer) clearInterval(turnTimer);
 
   if (gameData.gameStarted) startTimers();
-  //console.log(`Game reset to initial state. Starting turn: ${gameData.currentTurn}`);
 }
 
-// Start timers for session and turns
 function startTimers() {
   sessionTimer = setInterval(() => {
     gameData.timeLeft -= 1;
@@ -148,7 +150,6 @@ function startTimers() {
   }, 1000);
 }
 
-// Switch turns between farmer and thief
 function switchTurn() {
   gameData.currentTurn = gameData.currentTurn === 'farmer' ? 'thief' : 'farmer';
   io.emit('gameState', gameData);
@@ -156,18 +157,16 @@ function switchTurn() {
   console.log(`Turn switched to: ${gameData.currentTurn}`);
 }
 
-// Reset game and scores
 function resetGameAndScores() {
   resetGameState(null, true, true);
 }
 
 function endSession() {
-  stopGame(); // Clears game data and timers
-  io.emit('sessionEnded'); // Notify clients that the session has ended
+  stopGame();
+  io.emit('sessionEnded');
   console.log("Session has ended. Game stopped.");
 }
 
-// Emit updated player status to all clients
 function updateAllClientsWithPlayerStatus() {
   io.emit('currentPlayerStatus', { players: gameData.players });
 }
@@ -176,7 +175,6 @@ function assignRandomRole(socket) {
   const availablePlayers = gameData.players.filter(player => !player.connected);
   if (availablePlayers.length === 0) return null;
 
-  // Select a random player from the available players
   const randomIndex = Math.floor(Math.random() * availablePlayers.length);
   const selectedPlayer = availablePlayers[randomIndex];
 
@@ -185,7 +183,6 @@ function assignRandomRole(socket) {
 
   return selectedPlayer.role;
 }
-
 
 function checkIfGameCanStart() {
   const allReady = gameData.players.every(player => player.connected && player.ready);
@@ -208,56 +205,55 @@ function checkIfGameCanStart() {
 function logMove(playerRole, direction) {
   const logMessage = `${playerRole} moved ${direction}`;
   console.log("[Move Log]", logMessage);
-  io.emit("moveLog", logMessage); // Emit the log message to all connected clients
+  io.emit("moveLog", logMessage);
 }
 
 app.get('/api/get-role/:socketID', (req, res) => {
   const { socketID } = req.params;
 
-  // Find the player in gameData.players with a matching userId
   const player = gameData.players.find(player => player.userId === socketID);
 
   if (player && player.role) {
-    // If a player with the matching userId is found, return the role
     res.json({ role: player.role });
   } else {
-    // If no player is found, return a 404 error
     res.status(404).json({ error: "Role not found for this socketID." });
   }
 });
 
 app.get('/api/gameData', (req, res) => {
-  // Extract the relevant data you want to send to the client
   const playerData = gameData.players.map(player => ({
     userId: player.userId,
     username: player.username,
     role: player.role,
-    image_id: player.image_id // Only send the image ID, not the full URL
+    image_id: player.image_id
   }));
   
   res.json({ players: playerData });
 });
 
 let totalConnectedClients = 0;
-let connectedPlayerCount = 0; 
-// WebSocket Connection Handling
+let connectedPlayerCount = 0;
+
 io.on('connection', (socket) => {
   totalConnectedClients++;
-  io.emit('totalConnectedClients', totalConnectedClients); // Emit the updated count to all clients
+  io.emit('totalConnectedClients', totalConnectedClients);
   console.log(`A player connected: ${socket.id}. Total connected clients: ${totalConnectedClients}`);
+
+  socket.on("clientConnected", () => {
+    io.emit("totalConnectedClients", totalConnectedClients);
+  });
 
   setTimeout(() => {
     socket.emit('totalConnectedClients', totalConnectedClients);
-  }, 50); // Delay to ensure the client is ready to receive the event
+  }, 50);
 
   socket.on('joinLobby', () => {
-    // Check if the user already has a role assigned
     const existingPlayer = gameData.players.find(player => player.userId === socket.id);
 
     if (existingPlayer) {
       console.log(`Player with ID ${socket.id} already has a role: ${existingPlayer.role}`);
       socket.emit('playerConnected', { role: existingPlayer.role });
-      return; // Exit to prevent assigning a new role
+      return;
     }
 
     const role = assignRandomRole(socket);
@@ -265,36 +261,41 @@ io.on('connection', (socket) => {
       console.log(`Assigned role ${role} to player with ID: ${socket.id}`);
       socket.emit('playerConnected', { role });
 
-      // Increment the player count and emit to all clients
       connectedPlayerCount++;
       io.emit('connectedPlayerCount', connectedPlayerCount);
     } else {
-      console.log("Lobby is full, disconnecting:", socket.id);
-      socket.emit('error', { message: "Lobby is full." });
-      socket.disconnect();
+      console.log("Lobby is full, notifying player:", socket.id);
+      socket.emit('lobbyFull', { message: "The lobby is full. You will be redirected to the main menu shortly."});
     }
 
     console.log("Client joined lobby and received player status.");
   });
 
-  // Listen for chat messages from clients
   socket.on('chatMessage', (msg) => {
     console.log('Received message:', msg);
-    // Broadcast the message to all connected clients
     io.emit('chatMessage', msg);
   });
-
 
   socket.on('playerReady', ({ userId, username, profilePictureId }) => {
     const player = gameData.players.find(p => p.userId === userId);
     if (player) {
       player.ready = true;
-      player.username = username;       // Update the player's username
-      player.image_id = profilePictureId; // Update the player's profile picture (image_id field)
+      player.username = username;
+      player.image_id = profilePictureId;
       
       console.log(`${player.role} is ready with username: ${username} and profile picture: ${profilePictureId}`, gameData.players);
       
-      checkIfGameCanStart(); // Check if the game can start now
+      checkIfGameCanStart();
+    }
+  });
+
+  socket.on("start-game", () => {
+    if (!isGameStarted) {
+      isGameStarted = true; // Prevent further calls to start the game
+      resetGameAndScores(); // Initialize the game and reset scores
+      console.log("Game started.");
+    } else {
+      console.log("Game already started, ignoring additional start-game calls.");
     }
   });
   
@@ -307,7 +308,6 @@ io.on('connection', (socket) => {
       return;
     }
   
-    // Calculate new position based on direction
     let newPosition = { ...player.position };
     switch (direction) {
       case "up":
@@ -327,7 +327,6 @@ io.on('connection', (socket) => {
         return;
     }
   
-    // Validate the move is within grid boundaries
     if (
       newPosition.row < 0 ||
       newPosition.row >= gameData.grid.blocks.length ||
@@ -341,16 +340,13 @@ io.on('connection', (socket) => {
   
     const blockType = gameData.grid.blocks[newPosition.row][newPosition.col];
   
-    // Check if move is to a valid block type
     if (!blockType.startsWith('free') && !(blockType === 'tunnel' && role === 'thief')) {
-      //logMove(role, "invalid move");
       socket.emit('error', { message: `Invalid move: cannot move to a ${blockType} block.` });
       return;
     }
   
     logMove(role, direction);
   
-    // Update the player position and check for win conditions
     player.position = newPosition;
   
     if (role === 'farmer') {
@@ -385,26 +381,35 @@ io.on('connection', (socket) => {
 
   socket.on('resetGame', resetGameAndScores);
 
+  socket.on('leaveLobby', () => {
+    const leavingPlayer = gameData.players.find(p => p.userId === socket.id);
+
+    if (leavingPlayer) {
+      leavingPlayer.connected = false;
+      leavingPlayer.userId = null;
+      leavingPlayer.ready = false;
+      console.log(`Player with role ${leavingPlayer.role} left the lobby: ${socket.id}`);
+
+      connectedPlayerCount = Math.max(connectedPlayerCount - 1, 0);
+      io.emit('connectedPlayerCount', connectedPlayerCount);
+    }
+  });
+
   socket.on('disconnect', () => {
     const disconnectedPlayer = gameData.players.find(p => p.userId === socket.id);
 
-    // Handle player disconnection in gameData if applicable
     if (disconnectedPlayer) {
       disconnectedPlayer.connected = false;
       disconnectedPlayer.userId = null;
       disconnectedPlayer.ready = false;
       console.log(`Player with role ${disconnectedPlayer.role} disconnected: ${socket.id}`);
 
-      // Decrement lobby-specific connectedPlayerCount and emit to all clients
       connectedPlayerCount = Math.max(connectedPlayerCount - 1, 0);
       io.emit('connectedPlayerCount', connectedPlayerCount);
 
-      if (connectedPlayerCount === 0) {
-        stopGame();
-      }
+      stopGame();
     }
 
-    // Decrement totalConnectedClients and emit the updated count to all clients
     totalConnectedClients = Math.max(totalConnectedClients - 1, 0);
     io.emit('totalConnectedClients', totalConnectedClients);
     console.log(`Total connected clients after disconnect: ${totalConnectedClients}`);
