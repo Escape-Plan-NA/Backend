@@ -81,11 +81,6 @@ function stopGame() {
     gameStarted: false
   };
 
-  if (sessionTimer) clearInterval(sessionTimer);
-  if (turnTimer) clearInterval(turnTimer);
-  sessionTimer = null;
-  turnTimer = null;
-
   console.log("Game stopped, clearing all gameData");
 
   io.emit('gameReset', gameData);
@@ -162,10 +157,23 @@ function resetGameAndScores() {
 }
 
 function endSession() {
-  stopGame();
-  io.emit('sessionEnded');
+  // Stop all timers immediately
+  if (sessionTimer) clearInterval(sessionTimer);
+  if (turnTimer) clearInterval(turnTimer);
+  sessionTimer = null;
+  turnTimer = null;
+
+  console.log(`Game session ended. Final Scores - Farmer: ${gameData.players[0].score}, Thief: ${gameData.players[1].score}`);
+
+  io.emit('sessionEnded', { scores: { farmer: gameData.players[0].score, thief: gameData.players[1].score } });
   console.log("Session has ended. Game stopped.");
+
+  // Wait 10 seconds before resetting the game data and notifying clients
+  setTimeout(() => {
+    stopGame(); // Reset the game state fully after the delay
+  }, 10000); // 10 seconds delay
 }
+
 
 function updateAllClientsWithPlayerStatus() {
   io.emit('currentPlayerStatus', { players: gameData.players });
@@ -229,6 +237,15 @@ app.get('/api/gameData', (req, res) => {
   }));
   
   res.json({ players: playerData });
+});
+
+app.get('/api/final-scores', (req, res) => {
+  res.json({
+      scores: {
+          farmer: gameData.players[0].score,
+          thief: gameData.players[1].score,
+      }
+  });
 });
 
 let totalConnectedClients = 0;
@@ -361,6 +378,7 @@ io.on('connection', (socket) => {
   
       if (newPosition.row === gameData.grid.thiefPosition.row && newPosition.col === gameData.grid.thiefPosition.col) {
         gameData.players[0].score++;
+        console.log(`Farmer scored! New score: Farmer - ${gameData.players[0].score}, Thief - ${gameData.players[1].score}`);
         resetGameState('farmer', false, false);
         io.emit('winner', { winner: 'farmer', scores: { farmer: gameData.players[0].score, thief: gameData.players[1].score } });
         return;
@@ -370,6 +388,7 @@ io.on('connection', (socket) => {
   
       if (newPosition.row === gameData.grid.farmerPosition.row && newPosition.col === gameData.grid.farmerPosition.col) {
         gameData.players[0].score++;
+        console.log(`Farmer scored! New score: Farmer - ${gameData.players[0].score}, Thief - ${gameData.players[1].score}`);
         resetGameState('farmer', false, false);
         io.emit('winner', { winner: 'farmer', scores: { farmer: gameData.players[0].score, thief: gameData.players[1].score } });
         return;
@@ -377,6 +396,7 @@ io.on('connection', (socket) => {
   
       if (blockType === 'tunnel') {
         gameData.players[1].score++;
+        console.log(`Thief scored by reaching a tunnel! New score: Farmer - ${gameData.players[0].score}, Thief - ${gameData.players[1].score}`);
         resetGameState('thief', false, false);
         io.emit('winner', { winner: 'thief', scores: { farmer: gameData.players[0].score, thief: gameData.players[1].score } });
         return;
