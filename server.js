@@ -383,6 +383,37 @@ io.on('connection', (socket) => {
     switchTurn();
   });
 
+  socket.emit('game_update', gameData);
+
+  socket.on('surrender', ({ role }, callback) => {
+    // Find the surrendering player by role
+    const winningPlayer = Object.values(gameData.players).find(player => player.role !== role);
+    const surrenderingPlayer = Object.values(gameData.players).find(player => player.role === role);
+    
+    // Log to identify potential issues
+    console.log("Winning Player:", winningPlayer);
+
+    // Check if players are defined before proceeding
+    if (!winningPlayer || !surrenderingPlayer) {
+        console.error("Error: Player not found for surrender event");
+        return callback({ error: "Player not found" });
+    }
+
+    // Update scores
+    winningPlayer.score += 1;
+
+    // Send updated scores and game-over message back to the clients
+    const message = `${winningPlayer.role} wins due to ${surrenderingPlayer.role} surrendering!`;
+    io.emit('surrender', { message, scores: { farmer: gameData.players[0].score, thief: gameData.players[1].score } });
+
+    // Acknowledge the surrender with updated scores
+    callback({
+        scores: { farmer: gameData.players[0].score, thief: gameData.players[1].score },
+        winner: winningPlayer.role
+    });
+  });
+  socket.on('resetFromSurrender', resetGameState);
+
   socket.on('resetGame', resetGameAndScores);
 
   socket.on('disconnect', () => {
