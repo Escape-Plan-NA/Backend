@@ -89,8 +89,8 @@ function stopGame() {
   console.log("Game stopped, clearing all gameData");
 
   io.emit('gameReset', gameData);
-  io.emit('leftLobby');
-  console.log("left lobby called");
+  io.emit('leftGame');
+  console.log("left game called");
 
   connectedPlayerCount = 0;
   io.emit('connectedPlayerCount', connectedPlayerCount);
@@ -263,9 +263,10 @@ io.on('connection', (socket) => {
 
       connectedPlayerCount++;
       io.emit('connectedPlayerCount', connectedPlayerCount);
+      console.log("A player joined the lobby:", connectedPlayerCount);
     } else {
       console.log("Lobby is full, notifying player:", socket.id);
-      socket.emit('lobbyFull', { message: "The lobby is full. You will be redirected to the main menu shortly."});
+      socket.emit('lobbyFull', { message: "The lobby is full. You will be redirected to the main menu shortly." });
     }
 
     console.log("Client joined lobby and received player status.");
@@ -390,8 +391,9 @@ io.on('connection', (socket) => {
       leavingPlayer.ready = false;
       console.log(`Player with role ${leavingPlayer.role} left the lobby: ${socket.id}`);
 
-      connectedPlayerCount = Math.max(connectedPlayerCount - 1, 0);
+      if (connectedPlayerCount > 0) connectedPlayerCount--;
       io.emit('connectedPlayerCount', connectedPlayerCount);
+      console.log(`Current number of players in lobby: ${connectedPlayerCount}`);
     }
   });
 
@@ -404,8 +406,9 @@ io.on('connection', (socket) => {
       disconnectedPlayer.ready = false;
       console.log(`Player with role ${disconnectedPlayer.role} disconnected: ${socket.id}`);
 
-      connectedPlayerCount = Math.max(connectedPlayerCount - 1, 0);
+      if (connectedPlayerCount > 0) connectedPlayerCount--;
       io.emit('connectedPlayerCount', connectedPlayerCount);
+      console.log(`Current number of players in lobby after disconnection: ${connectedPlayerCount}`);
 
       stopGame();
     }
