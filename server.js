@@ -298,6 +298,12 @@ io.on('connection', (socket) => {
     } else {
       console.log("Game already started, ignoring additional start-game calls.");
     }
+    io.emit("gameState", gameData);
+  });
+
+  socket.on("requestGameState", () => {
+    // Send the current game state to the requesting client
+    socket.emit("gameState", gameData);
   });
   
 
