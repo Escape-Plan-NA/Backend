@@ -298,7 +298,6 @@ io.on('connection', (socket) => {
     }
   });
   
-
   socket.on('move', ({ role, direction }) => {
     const player = gameData.players.find(p => p.role === role && p.userId === socket.id);
   
@@ -334,17 +333,17 @@ io.on('connection', (socket) => {
       newPosition.col < 0 ||
       newPosition.col >= gameData.grid.blocks[0].length
     ) {
-      logMove(role, "invalid move");
-      socket.emit('error', { message: "Invalid move: position out of bounds." });
+      logMove(role, "out of bounds");
+      socket.emit('outOfBounds', { message: "Invalid move: position out of bounds." });
       return;
     }
   
     const blockType = gameData.grid.blocks[newPosition.row][newPosition.col];
   
-    // Check if move is to a valid block type
+    // Check if move is to a non-free block (excluding tunnel for thief)
     if (!blockType.startsWith('free') && !(blockType === 'tunnel' && role === 'thief')) {
-      //logMove(role, "invalid move");
-      socket.emit('error', { message: `Invalid move: cannot move to a ${blockType} block.` });
+      logMove(role, "hit non-free block");
+      socket.emit('invalidMove', { message: `Cannot move to ${blockType} block.` });
       return;
     }
   
