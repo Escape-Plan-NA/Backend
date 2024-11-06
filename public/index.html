@@ -8,18 +8,18 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            text-align: center; 
+            text-align: center;
             margin: 0;
             padding: 20px;
             background-color: #e0e64879;
         }
-        .connection-count {
-            margin: 20px auto; 
+        .connection-count, .controls {
+            margin: 20px auto;
             padding: 15px;
-            border: 2px solid #9dcb61; /**border **/
-            border-radius: 10px; 
-            background-color: #9298e1; /**bg color **/
-            width: 50%; 
+            border: 2px solid #9dcb61;
+            border-radius: 10px;
+            background-color: #9298e1;
+            width: 50%;
         }
         h1 {
             color: #333;
@@ -52,46 +52,54 @@
 </head>
 <body>
     <h1>Socket.IO Escape Plan</h1>
-    <div class="connection-count"> 
+    <div class="connection-count">
         <p>Connections: <span id="connectionCount">0</span></p>
     </div>
-    <p>Status: <span id="status">Disconnected</span></p>
-    <button id="moveButton">Make a Move</button>
+    <div class="controls">
+        <button id="resetButton">Reset Game</button>
+        <p>Status: <span id="status">Disconnected</span></p>
+    </div>
     <ul id="messages"></ul>
 
     <script>
-        const socket = io(); // Connect to the Socket.IO server
+        const socket = io(); 
+
         const status = document.getElementById('status');
-        const moveButton = document.getElementById('moveButton');
-        const messages = document.getElementById('messages');
-        const connectionCount = document.getElementById('connectionCount'); 
+        const connectionCount = document.getElementById('connectionCount');
+        const resetButton = document.getElementById('resetButton');
 
         socket.on('connect', () => {
-            status.textContent = 'Connected';
-            console.log('Connected to server:', socket.id);
+            socket.emit('requestTotalConnections');
         });
 
         socket.on('disconnect', () => {
             status.textContent = 'Disconnected';
-            console.log('Disconnected from server');
+            status.style.color = 'red';
+        });
+        socket.on('totalConnectedClients', (count) => {
+            connectionCount.textContent = count;
         });
 
-        socket.on('update_state', (data) => {
-            const item = document.createElement('li');
-            item.textContent = 'Move received: ' + JSON.stringify(data);
-            messages.appendChild(item);
-            window.scrollTo(0, document.body.scrollHeight);
+        resetButton.addEventListener('click', () => {
+            socket.emit('resetGame'); 
         });
 
-        socket.on('update_connection_count', (count) => {
-            connectionCount.textContent = count; 
+
+        socket.on('chatMessage', (msg) => {
+            const messages = document.getElementById('messages');
+            const messageItem = document.createElement('li');
+            messageItem.textContent = msg;
+            messages.appendChild(messageItem);
         });
 
-        // Simulate a move on button click
-        moveButton.addEventListener('click', () => {
-            const moveData = { playerId: socket.id, action: 'move' }; // Sample move data
-            socket.emit('move', moveData);
-            console.log('Move sent:', moveData);
+        socket.on('connect', () => {
+            status.textContent = 'Connected';
+            status.style.color = 'green';
+        });
+
+    
+        socket.on('resetGame', () => {
+            connectionCount.textContent = '0'; 
         });
     </script>
 </body>
