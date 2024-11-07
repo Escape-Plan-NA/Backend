@@ -434,6 +434,13 @@ io.on('connection', (socket) => {
         scores: { farmer: gameData.players[0].score, thief: gameData.players[1].score },
         winner: winningPlayer.role
     });
+    // Call stopGame() to end the game and perform any necessary cleanup
+    setTimeout(() => {
+      stopGame(); // Reset the game state fully after the delay
+    }, 10000);
+    
+    
+    
   });
   socket.on('resetFromSurrender', resetGameState);
 
