@@ -3,43 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Socket.IO Escape Plan</title>
+    <title>Socket.IO Escape Plan - Server Interface</title>
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-    <h1>Socket.IO Escape Plan</h1>
+    <h1>Socket.IO Escape Plan - Server Interface</h1>
     <p>Status: <span id="status">Disconnected</span></p>
-    <button id="moveButton">Make a Move</button>
+    <p>Total Connected Clients: <span id="totalClients">0</span></p>
+    <button id="resetGameButton">Reset Game</button>
     <ul id="messages"></ul>
 
     <script>
-        const socket = io(); // Connect to the Socket.IO server
+        // Connect to the /admin namespace
+        const socket = io('/', { query: { type: 'server' } });
         const status = document.getElementById('status');
-        const moveButton = document.getElementById('moveButton');
+        const totalClients = document.getElementById('totalClients');
+        const resetGameButton = document.getElementById('resetGameButton');
         const messages = document.getElementById('messages');
 
         socket.on('connect', () => {
             status.textContent = 'Connected';
-            console.log('Connected to server:', socket.id);
+            console.log('Connected to server interface:', socket.id);
         });
 
         socket.on('disconnect', () => {
             status.textContent = 'Disconnected';
-            console.log('Disconnected from server');
+            console.log('Disconnected from server interface');
         });
 
-        socket.on('update_state', (data) => {
-            const item = document.createElement('li');
-            item.textContent = 'Move received: ' + JSON.stringify(data);
-            messages.appendChild(item);
-            window.scrollTo(0, document.body.scrollHeight);
+        // Update client count display
+        socket.on('totalConnectedClients', (count) => {
+            totalClients.textContent = count;
+            console.log('Total connected clients:', count);
         });
 
-        // Simulate a move on button click
-        moveButton.addEventListener('click', () => {
-            const moveData = { playerId: socket.id, action: 'move' }; // Sample move data
-            socket.emit('move', moveData);
-            console.log('Move sent:', moveData);
+        // Emit reset game event on button click
+        resetGameButton.addEventListener('click', () => {
+            socket.emit('resetGame');
+            console.log('Reset game requested by server interface');
         });
     </script>
 </body>

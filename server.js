@@ -80,6 +80,7 @@ function stopGame() {
     turnTimeLeft: 10,
     gameStarted: false
   };
+  updateGameStatus();
 
   console.log("Game stopped, clearing all gameData");
 
@@ -123,6 +124,10 @@ function resetGameState(winnerRole = 'thief', resetScores = false, resetTime = f
   if (turnTimer) clearInterval(turnTimer);
 
   if (gameData.gameStarted) startTimers();
+}
+
+function updateGameStatus() {
+  io.emit('gameStatus', { gameStarted: gameData.gameStarted });
 }
 
 function startTimers() {
@@ -202,6 +207,7 @@ function checkIfGameCanStart() {
 
   if (allReady) {
     gameData.gameStarted = true;
+    updateGameStatus();
     io.emit('gameStarted');
     console.log("Both players are ready. Game is starting.");
     updateAllClientsWithPlayerStatus();
@@ -252,9 +258,15 @@ let totalConnectedClients = 0;
 let connectedPlayerCount = 0;
 
 io.on('connection', (socket) => {
-  totalConnectedClients++;
-  io.emit('totalConnectedClients', totalConnectedClients);
-  console.log(`A player connected: ${socket.id}. Total connected clients: ${totalConnectedClients}`);
+  const isServerPage = socket.handshake.query.type === 'server';
+
+  if (!isServerPage) {
+      totalConnectedClients++;
+      io.emit('totalConnectedClients', totalConnectedClients);
+      console.log(`Game client connected: ${socket.id}. Total game clients: ${totalConnectedClients}`);
+  } else {
+      console.log(`Server page connected: ${socket.id}.`);
+  }
 
   socket.on("clientConnected", () => {
     io.emit("totalConnectedClients", totalConnectedClients);
@@ -409,13 +421,10 @@ io.on('connection', (socket) => {
   socket.emit('game_update', gameData);
 
   socket.on('surrender', ({ role }, callback) => {
-    // Find the surrendering player by role
-    const winningPlayer = Object.values(gameData.players).find(player => player.role !== role);
-    const surrenderingPlayer = Object.values(gameData.players).find(player => player.role === role);
+    // Find the winning and surrendering players by role
+    const winningPlayer = gameData.players.find(player => player.role !== role);
+    const surrenderingPlayer = gameData.players.find(player => player.role === role);
     
-    // Log to identify potential issues
-    console.log("Winning Player:", winningPlayer);
-
     // Check if players are defined before proceeding
     if (!winningPlayer || !surrenderingPlayer) {
         console.error("Error: Player not found for surrender event");
@@ -425,7 +434,7 @@ io.on('connection', (socket) => {
     // Update scores
     winningPlayer.score += 1;
 
-    // Send updated scores and game-over message back to the clients
+    // Send game-over message back to the clients
     const message = `${winningPlayer.role} wins due to ${surrenderingPlayer.role} surrendering!`;
     io.emit('surrender', { message, scores: { farmer: gameData.players[0].score, thief: gameData.players[1].score } });
 
@@ -460,29 +469,71 @@ io.on('connection', (socket) => {
       console.log(`Current number of players in lobby: ${connectedPlayerCount}`);
     }
   });
-
   socket.on('disconnect', () => {
-    const disconnectedPlayer = gameData.players.find(p => p.userId === socket.id);
+    // Check if the connection is from the server page using the query parameter
+    const isServerPage = socket.handshake.query.type === 'server';
 
-    if (disconnectedPlayer) {
-      disconnectedPlayer.connected = false;
-      disconnectedPlayer.userId = null;
-      disconnectedPlayer.ready = false;
-      console.log(`Player with role ${disconnectedPlayer.role} disconnected: ${socket.id}`);
+    if (!isServerPage) {
+        const disconnectedPlayer = gameData.players.find(p => p.userId === socket.id);
 
-      if (connectedPlayerCount > 0) connectedPlayerCount--;
-      io.emit('connectedPlayerCount', connectedPlayerCount);
-      console.log(`Current number of players in lobby after disconnection: ${connectedPlayerCount}`);
+        if (disconnectedPlayer) {
+            disconnectedPlayer.connected = false;
+            disconnectedPlayer.userId = null;
+            disconnectedPlayer.ready = false;
+            console.log(`Player with role ${disconnectedPlayer.role} disconnected: ${socket.id}`);
 
-      stopGame();
+            if (connectedPlayerCount > 0) connectedPlayerCount--;
+            io.emit('connectedPlayerCount', connectedPlayerCount);
+            console.log(`Current number of players in lobby after disconnection: ${connectedPlayerCount}`);
+
+            stopGame();
+        }
+
+        totalConnectedClients = Math.max(totalConnectedClients - 1, 0);
+        io.emit('totalConnectedClients', totalConnectedClients);
+        console.log(`Total connected clients after disconnect: ${totalConnectedClients}`);
+    } else {
+        console.log(`Server page disconnected: ${socket.id}. Not affecting client count.`);
     }
-
-    totalConnectedClients = Math.max(totalConnectedClients - 1, 0);
-    io.emit('totalConnectedClients', totalConnectedClients);
-    console.log(`Total connected clients after disconnect: ${totalConnectedClients}`);
-  });
+});
   
 });
 
 const PORT = 3000;
 server.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://127.0.0.1:${PORT}`, gameData));
+
+const path = require('path');
+
+// Serve static files from the public directory
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Serve index.html for the root route
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Create a namespace for the server interface
+const adminNamespace = io.of('/admin');
+
+adminNamespace.on('connection', (socket) => {
+    console.log('Server interface connected:', socket.id);
+
+    // Listen for total connected clients and send to the server interface
+    socket.emit('totalConnectedClients', totalConnectedClients);
+
+    // Update the interface when the client count changes
+    io.on('totalConnectedClients', (count) => {
+        adminNamespace.emit('totalConnectedClients', count);
+    });
+
+    // Listen for game reset requests from the interface
+    socket.on('resetGame', () => {
+        io.emit('resetGame'); // Emit to all clients to reset the game
+        console.log('Reset game requested by server interface.');
+    });
+
+    socket.on('disconnect', () => {
+        console.log('Server interface disconnected:', socket.id);
+    });
+});
+
