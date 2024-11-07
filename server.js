@@ -92,6 +92,11 @@ function stopGame() {
   io.emit('connectedPlayerCount', connectedPlayerCount);
 
   isGameStarted = false;
+
+  if (sessionTimer) clearInterval(sessionTimer);
+  if (turnTimer) clearInterval(turnTimer);
+  sessionTimer = null;
+  turnTimer = null;
 }
 
 function resetGameState(winnerRole = 'thief', resetScores = false, resetTime = false) {
@@ -461,8 +466,8 @@ io.on('connection', (socket) => {
     });
     // Call stopGame() to end the game and perform any necessary cleanup
     setTimeout(() => {
-      stopGame(); // Reset the game state fully after the delay
-    }, 10000);
+      stopGame();
+    }, 5000);
     
     
     
