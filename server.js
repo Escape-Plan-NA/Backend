@@ -387,30 +387,46 @@ io.on('connection', (socket) => {
   
     if (role === 'farmer') {
       gameData.grid.farmerPosition = newPosition;
-  
+    
       if (newPosition.row === gameData.grid.thiefPosition.row && newPosition.col === gameData.grid.thiefPosition.col) {
         gameData.players[0].score++;
         console.log(`Farmer scored! New score: Farmer - ${gameData.players[0].score}, Thief - ${gameData.players[1].score}`);
-        resetGameState('farmer', false, false);
+        io.emit('gameState', gameData);
         io.emit('winner', { winner: 'farmer', scores: { farmer: gameData.players[0].score, thief: gameData.players[1].score } });
+    
+        // Add delay before resetting and declaring farmer as winner
+        setTimeout(() => {
+          resetGameState('farmer', false, false);
+        }, 1500);
+    
         return;
       }
     } else if (role === 'thief') {
       gameData.grid.thiefPosition = newPosition;
-  
+    
       if (newPosition.row === gameData.grid.farmerPosition.row && newPosition.col === gameData.grid.farmerPosition.col) {
         gameData.players[0].score++;
         console.log(`Farmer scored! New score: Farmer - ${gameData.players[0].score}, Thief - ${gameData.players[1].score}`);
-        resetGameState('farmer', false, false);
+        io.emit('gameState', gameData);
         io.emit('winner', { winner: 'farmer', scores: { farmer: gameData.players[0].score, thief: gameData.players[1].score } });
+    
+        setTimeout(() => {
+          resetGameState('farmer', false, false);
+        }, 1500);
+    
         return;
       }
-  
+    
       if (blockType === 'tunnel') {
         gameData.players[1].score++;
         console.log(`Thief scored by reaching a tunnel! New score: Farmer - ${gameData.players[0].score}, Thief - ${gameData.players[1].score}`);
-        resetGameState('thief', false, false);
+        io.emit('gameState', gameData);
         io.emit('winner', { winner: 'thief', scores: { farmer: gameData.players[0].score, thief: gameData.players[1].score } });
+        // Add delay before resetting and declaring thief as winner
+        setTimeout(() => {
+          resetGameState('thief', false, false);
+        }, 1500);
+    
         return;
       }
     }
